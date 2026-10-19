@@ -1,0 +1,24 @@
+# Markdown Memory default settings.
+# User overrides belong in the plugin settings UI or usr/plugins/markdown_memory/config.json
+# (never committed to a public repository). Environment overrides use
+# MARKDOWN_MEMORY__<KEY> style variables where the framework supports them.
+
+# Injection toggles
+inject_policy: true
+inject_recall: true
+
+# Vault and index locations (absolute paths inside the Agent Zero container)
+vault_path: /a0/usr/AI-Memory
+index_path: /a0/usr/AI-Memory-Index/memory-granite.db
+
+# Embedding provider (Ollama-compatible /api/embed endpoint)
+embedding_url: ""
+embedding_model: granite-embedding:278m
+embedding_dimensions: 768
+embedding_timeout_seconds: 15
+
+# Recall behaviour (matches the original hard-coded behaviour by default)
+recall_limit: 3
+min_message_chars: 5
+search_timeout_seconds: 20
+max_note_chars: 6000

@@ -1,0 +1,160 @@
+<html>
+<head>
+  <title>Markdown Memory</title>
+  <script type="module">
+    import { store } from "/components/plugins/plugin-settings-store.js";
+  </script>
+</head>
+
+<body>
+  <div x-data="{
+    initConfig() {
+      if (typeof config.inject_policy !== 'boolean') config.inject_policy = true;
+      if (typeof config.inject_recall !== 'boolean') config.inject_recall = true;
+      if (typeof config.embedding_url !== 'string') config.embedding_url = '';
+      if (typeof config.embedding_model !== 'string' || !config.embedding_model) config.embedding_model = 'granite-embedding:278m';
+      const dims = Number(config.embedding_dimensions); config.embedding_dimensions = Number.isFinite(dims) && dims > 0 ? dims : 768;
+      const et = Number(config.embedding_timeout_seconds); config.embedding_timeout_seconds = Number.isFinite(et) && et >= 1 ? Math.min(300, et) : 15;
+      const rl = Number(config.recall_limit); config.recall_limit = Number.isFinite(rl) ? Math.max(1, Math.min(10, rl)) : 3;
+      const mc = Number(config.min_message_chars); config.min_message_chars = Number.isFinite(mc) ? Math.max(0, Math.min(10000, mc)) : 5;
+      const st = Number(config.search_timeout_seconds); config.search_timeout_seconds = Number.isFinite(st) && st >= 1 ? Math.min(300, st) : 20;
+      const mn = Number(config.max_note_chars); config.max_note_chars = Number.isFinite(mn) ? Math.max(500, Math.min(100000, mn)) : 6000;
+      if (typeof config.vault_path !== 'string' || !config.vault_path) config.vault_path = '/a0/usr/AI-Memory';
+      if (typeof config.index_path !== 'string' || !config.index_path) config.index_path = '/a0/usr/AI-Memory-Index/memory-granite.db';
+    }
+  }" x-init="initConfig()">
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Policy injecteren</div>
+        <div class="field-description">
+          Voegt de Markdown-memory-werkinstructies toe aan elke nieuwe chat.
+        </div>
+      </div>
+      <div class="field-control">
+        <input type="checkbox" x-model="config.inject_policy" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Semantische recall injecteren</div>
+        <div class="field-description">
+          Zoekt bij elk eerste gebruikersbericht relevante vault-notities en voegt ze als context toe.
+        </div>
+      </div>
+      <div class="field-control">
+        <input type="checkbox" x-model="config.inject_recall" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Embedding-endpoint (intern)</div>
+        <div class="field-description">
+          Ollama-compatibel <span class="ocr-code">/api/embed</span> endpoint, bijvoorbeeld
+          <span class="ocr-code">http://&lt;ollama-host&gt;:11434/api/embed</span>.
+          Leeg laten schakelt semantische recall uit. Na opslaan wordt de waarde gemaskeerd weergegeven.
+        </div>
+      </div>
+      <div class="field-control">
+        <input type="password" autocomplete="new-password" spellcheck="false"
+               x-model="config.embedding_url"
+               placeholder="http://host:11434/api/embed" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Embedding-model</div>
+        <div class="field-description">Modelnaam zoals gebruikt door de provider (standaard granite-embedding:278m).</div>
+      </div>
+      <div class="field-control">
+        <input type="text" spellcheck="false" x-model="config.embedding_model" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Aantal notities per recall</div>
+        <div class="field-description">1 tot 10 meest vergelijkbare notities (standaard 3).</div>
+      </div>
+      <div class="field-control">
+        <select x-model.number="config.recall_limit">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="8">8</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Minimale berichtlengte</div>
+        <div class="field-description">Kortere eerste berichten overslaan recall (tekens, standaard 5).</div>
+      </div>
+      <div class="field-control">
+        <input type="number" min="0" max="10000" x-model.number="config.min_message_chars" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Zoek-timeout (seconden)</div>
+        <div class="field-description">Maximum duur van één recall-zoekopdracht (standaard 20).</div>
+      </div>
+      <div class="field-control">
+        <input type="number" min="1" max="300" x-model.number="config.search_timeout_seconds" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Maximale notitielengte (tekens)</div>
+        <div class="field-description">Afkortlengte per geïnjecteerde notitie (standaard 6000).</div>
+      </div>
+      <div class="field-control">
+        <input type="number" min="500" max="100000" step="500" x-model.number="config.max_note_chars" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Vault-pad</div>
+        <div class="field-description">Absolute map met de Markdown-notities binnen de Agent Zero-container.</div>
+      </div>
+      <div class="field-control">
+        <input type="text" spellcheck="false" x-model="config.vault_path" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Index-database</div>
+        <div class="field-description">Pad naar de SQLite-vectorindex die de indexer vult.</div>
+      </div>
+      <div class="field-control">
+        <input type="text" spellcheck="false" x-model="config.index_path" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Embedding-dimensie &amp; provider-timeout</div>
+        <div class="field-description">
+          Dimensie van het model (Granite 278m = 768) en HTTP-timeout van de provider in seconden (standaard 15).
+        </div>
+      </div>
+      <div class="field-control" style="display: flex; gap: 0.5rem;">
+        <input type="number" min="1" max="8192" x-model.number="config.embedding_dimensions" />
+        <input type="number" min="1" max="300" x-model.number="config.embedding_timeout_seconds" />
+      </div>
+    </div>
+  </div>
+</body>
+</html>

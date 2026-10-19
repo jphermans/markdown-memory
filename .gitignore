@@ -1,0 +1,16 @@
+# Runtime user configuration (contains internal endpoint URLs)
+config.json
+
+# Plugin activation state
+.toggle-*
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+# Backups and editor files
+*.backup-*
+*.bak
+*.swp
+.DS_Store
