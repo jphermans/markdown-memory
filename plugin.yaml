@@ -1,7 +1,7 @@
 name: markdown_memory
 title: Markdown Memory
 description: Shared Obsidian-compatible Markdown memory with local Granite semantic recall for every chat.
-version: 1.0.0
+version: 1.0.1
 settings_sections:
   - agent
 per_project_config: false

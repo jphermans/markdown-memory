@@ -26,9 +26,9 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Policy injecteren</div>
+        <div class="field-title">Inject policy</div>
         <div class="field-description">
-          Voegt de Markdown-memory-werkinstructies toe aan elke nieuwe chat.
+          Adds the Markdown memory operating instructions to every new chat.
         </div>
       </div>
       <div class="field-control">
@@ -38,9 +38,9 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Semantische recall injecteren</div>
+        <div class="field-title">Inject semantic recall</div>
         <div class="field-description">
-          Zoekt bij elk eerste gebruikersbericht relevante vault-notities en voegt ze als context toe.
+          For each first user message, searches for relevant vault notes and injects them as context.
         </div>
       </div>
       <div class="field-control">
@@ -50,11 +50,11 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Embedding-endpoint (intern)</div>
+        <div class="field-title">Embedding endpoint (internal)</div>
         <div class="field-description">
-          Ollama-compatibel <span class="ocr-code">/api/embed</span> endpoint, bijvoorbeeld
-          <span class="ocr-code">http://&lt;ollama-host&gt;:11434/api/embed</span>.
-          Leeg laten schakelt semantische recall uit. Na opslaan wordt de waarde gemaskeerd weergegeven.
+          Ollama-compatible <span class="ocr-code">/api/embed</span> endpoint, for example
+          <span class="ocr-code">http://&lt;internal.example&gt;:11434/api/embed</span>.
+          Leave empty to disable semantic recall. After saving, the value is shown masked.
         </div>
       </div>
       <div class="field-control">
@@ -66,8 +66,8 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Embedding-model</div>
-        <div class="field-description">Modelnaam zoals gebruikt door de provider (standaard granite-embedding:278m).</div>
+        <div class="field-title">Embedding model</div>
+        <div class="field-description">Model name as used by the provider (default granite-embedding:278m).</div>
       </div>
       <div class="field-control">
         <input type="text" spellcheck="false" x-model="config.embedding_model" />
@@ -76,8 +76,8 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Aantal notities per recall</div>
-        <div class="field-description">1 tot 10 meest vergelijkbare notities (standaard 3).</div>
+        <div class="field-title">Notes per recall</div>
+        <div class="field-description">1 to 10 most similar notes (default 3).</div>
       </div>
       <div class="field-control">
         <select x-model.number="config.recall_limit">
@@ -95,8 +95,8 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Minimale berichtlengte</div>
-        <div class="field-description">Kortere eerste berichten overslaan recall (tekens, standaard 5).</div>
+        <div class="field-title">Minimum message length</div>
+        <div class="field-description">Shorter first messages skip recall (characters, default 5).</div>
       </div>
       <div class="field-control">
         <input type="number" min="0" max="10000" x-model.number="config.min_message_chars" />
@@ -105,8 +105,8 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Zoek-timeout (seconden)</div>
-        <div class="field-description">Maximum duur van één recall-zoekopdracht (standaard 20).</div>
+        <div class="field-title">Search timeout (seconds)</div>
+        <div class="field-description">Maximum duration of a single recall search (default 20).</div>
       </div>
       <div class="field-control">
         <input type="number" min="1" max="300" x-model.number="config.search_timeout_seconds" />
@@ -115,8 +115,8 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Maximale notitielengte (tekens)</div>
-        <div class="field-description">Afkortlengte per geïnjecteerde notitie (standaard 6000).</div>
+        <div class="field-title">Maximum note length (characters)</div>
+        <div class="field-description">Truncation length per injected note (default 6000).</div>
       </div>
       <div class="field-control">
         <input type="number" min="500" max="100000" step="500" x-model.number="config.max_note_chars" />
@@ -125,8 +125,8 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Vault-pad</div>
-        <div class="field-description">Absolute map met de Markdown-notities binnen de Agent Zero-container.</div>
+        <div class="field-title">Vault path</div>
+        <div class="field-description">Absolute directory containing the Markdown notes inside the Agent Zero container.</div>
       </div>
       <div class="field-control">
         <input type="text" spellcheck="false" x-model="config.vault_path" />
@@ -135,8 +135,8 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Index-database</div>
-        <div class="field-description">Pad naar de SQLite-vectorindex die de indexer vult.</div>
+        <div class="field-title">Index database</div>
+        <div class="field-description">Path to the SQLite vector index filled by the indexer.</div>
       </div>
       <div class="field-control">
         <input type="text" spellcheck="false" x-model="config.index_path" />
@@ -145,9 +145,9 @@
 
     <div class="field">
       <div class="field-label">
-        <div class="field-title">Embedding-dimensie &amp; provider-timeout</div>
+        <div class="field-title">Embedding dimensions &amp; provider timeout</div>
         <div class="field-description">
-          Dimensie van het model (Granite 278m = 768) en HTTP-timeout van de provider in seconden (standaard 15).
+          Dimension of the model (Granite 278m = 768) and the provider HTTP timeout in seconds (default 15).
         </div>
       </div>
       <div class="field-control" style="display: flex; gap: 0.5rem;">

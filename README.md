@@ -1,95 +1,95 @@
 # Markdown Memory — Agent Zero Plugin
 
-**Versie:** 1.0.0 · **Auteur:** jphermans · **Licentie:** MIT
+**Version:** 1.0.1 · **Author:** jphermans · **License:** MIT
 
 ![Markdown Memory](webui/thumbnail.png)
 
-Gedeeld, Obsidian-compatibel Markdown-geheugen met semantische recall via lokale Granite-embeddings voor élke Agent Zero-chat.
+Shared, Obsidian-compatible Markdown memory with semantic recall via local Granite embeddings for every Agent Zero chat.
 
 ---
 
-## Inhoudsopgave
+## Table of Contents
 
-1. [Doelstelling](#doelstelling)
-2. [Benodigdheden](#benodigdheden)
-3. [Wat doet de plugin](#wat-doet-de-plugin)
-4. [Installatie](#installatie)
-5. [Configuratie](#configuratie)
-6. [Index bijwerken](#index-bijwerken)
-7. [Gebruik](#gebruik)
-8. [API-eindpunten](#api-eindpunten)
-9. [Tests uitvoeren](#tests-uitvoeren)
-10. [Verwijderen en opschonen](#verwijderen-en-opschonen)
-11. [Eindcontrole](#eindcontrole)
+1. [Purpose](#purpose)
+2. [Requirements](#requirements)
+3. [What the plugin does](#what-the-plugin-does)
+4. [Installation](#installation)
+5. [Configuration](#configuration)
+6. [Refreshing the index](#refreshing-the-index)
+7. [Usage](#usage)
+8. [API endpoints](#api-endpoints)
+9. [Running the tests](#running-the-tests)
+10. [Removal and cleanup](#removal-and-cleanup)
+11. [Final checks](#final-checks)
 
 ---
 
-## Doelstelling
+## Purpose
 
-Deze plugin geeft elke Agent Zero-agent twee blijvende contextuele vaardigheden:
+This plugin gives every Agent Zero agent two persistent contextual abilities:
 
-1. **Policy-injectie** — bij iteratie 0 van elke berichtenloop worden de werkinstructies voor de gedeelde Markdown-vault (`prompts/policy.md`) als permanente extra geïnjecteerd, zodat de agent de vaultregels kent (categorieën, duplicaatpreventie, geen secrets).
-2. **Semantische recall** — het eerste gebruikersbericht wordt geëmbed met een lokaal Granite-model (via een Ollama-compatibel `/api/embed`-endpoint), tegen de SQLite-vectorindex gerangschikt met cosinus-gelijkheid, en de top-notities worden als naslagwerk (niet als instructies) geïnjecteerd.
+1. **Policy injection** — at iteration 0 of every message loop, the operating instructions for the shared Markdown vault (`prompts/policy.md`) are injected as a persistent extra, so the agent knows the vault rules (categories, duplicate prevention, no secrets).
+2. **Semantic recall** — the first user message is embedded with a local Granite model (through an Ollama-compatible `/api/embed` endpoint), ranked against the SQLite vector index using cosine similarity, and the top notes are injected as reference material (never as instructions).
 
-De Markdown-vault is de autoritaire bron; de SQLite-index is een herbouwbare zoekcache.
+The Markdown vault is the authoritative source; the SQLite index is a rebuildable search cache.
 
-## Benodigdheden
+## Requirements
 
-- Agent Zero (Docker) met pluginondersteuning (`usr/plugins/`)
-- Een vault met Markdown-notities (standaard `/a0/usr/AI-Memory`)
-- Een Ollama-compatibele embedding-server (bijv. `granite-embedding:278m`, dimensie 768) die bereikbaar is vanuit de Agent Zero-container
-- Toegang tot de Agent Zero-container voor de indexer (`/opt/venv-a0/bin/python`)
-- Geen extra Python-afhankelijkheden: de plugin gebruikt uitsluitend de standaardbibliotheek
+- Agent Zero (Docker) with plugin support (`usr/plugins/`)
+- A vault of Markdown notes (default `/a0/usr/AI-Memory`)
+- An Ollama-compatible embedding server (e.g. `granite-embedding:278m`, dimension 768) reachable from the Agent Zero container
+- Access to the Agent Zero container for the indexer (`/opt/venv-a0/bin/python`)
+- No extra Python dependencies: the plugin uses only the standard library
 
-## Wat doet de plugin
+## What the plugin does
 
-| Onderdeel | Locatie | Functie |
+| Component | Location | Function |
 |---|---|---|
-| Policy-extensie | `extensions/python/message_loop_prompts_after/_40_markdown_memory_policy.py` | Injecteert de vault-werkinstructies (bundeld, met fallback op de legacy-skill) |
-| Recall-extensie | `extensions/python/message_loop_prompts_after/_60_markdown_recall.py` | Zoekt en injecteert relevante notities bij het eerste bericht |
-| Configuratie | `helpers/config.py` | Merge `default_config.yaml` + `config.json`, valideert en klemt waarden |
-| Zoekmachine | `helpers/search.py` | Granite-embedding + cosinus-ranking + veilige padcontroles |
-| Lifecycle | `hooks.py` | `install` / `pre_update` / `uninstall` en settings-hooks (URL-masking) |
-| Indexer | `scripts/index_granite.py` | Vult de SQLite-index (incrementeel, verwijdert verouderde records) |
-| API | `api/status.py`, `api/search.py` | Status en testzoekopdrachten voor de WebUI/automatisering |
-| Instellingen-UI | `webui/config.html` | Plugin-instellingen in het tabblad Agent |
+| Policy extension | `extensions/python/message_loop_prompts_after/_40_markdown_memory_policy.py` | Injects the vault operating instructions (bundled, with legacy-skill fallback) |
+| Recall extension | `extensions/python/message_loop_prompts_after/_60_markdown_recall.py` | Searches and injects relevant notes for the first message |
+| Configuration | `helpers/config.py` | Merges `default_config.yaml` + `config.json`, validates and clamps values |
+| Search engine | `helpers/search.py` | Granite embedding + cosine ranking + safe path checks |
+| Lifecycle | `hooks.py` | `install` / `pre_update` / `uninstall` and settings hooks (URL masking) |
+| Indexer | `scripts/index_granite.py` | Fills the SQLite index (incremental, removes stale records) |
+| API | `api/status.py`, `api/search.py` | Status and test searches for the WebUI/automation |
+| Settings UI | `webui/config.html` | Plugin settings in the Agent tab |
 
-## Installatie
+## Installation
 
-### Via de Plugin UI (Git)
+### Via the Plugin UI (Git)
 
 1. Open **Settings → Plugins → Install from Git**.
-2. Voer de repository-URL in: `https://github.com/jphermans/markdown-memory.git`
-3. Bevestig de installatie. De `install()`-hook controleert de code en de gebundelde policy; er is geen extra handmatige stap nodig.
+2. Enter the repository URL: `https://github.com/jphermans/markdown-memory.git`
+3. Confirm the installation. The `install()` hook verifies the code and the bundled policy; no extra manual step is required.
 
-### Handmatig (docker exec)
+### Manually (docker exec)
 
 ```bash
 git clone https://github.com/jphermans/markdown-memory.git /a0/usr/plugins/markdown_memory
 ```
 
-Herstart Agent Zero of wacht tot de plugin-cache ververst; daarna is de plugin direct actief (standaard ingeschakeld).
+Restart Agent Zero or wait for the plugin cache to refresh; the plugin is active immediately afterwards (enabled by default).
 
-## Configuratie
+## Configuration
 
-Standaardwaarden staan in `default_config.yaml`. Gebruikersoverschrijvingen worden opgeslagen in `usr/plugins/markdown_memory/config.json` (automatisch gitignored; bevat mogelijk interne endpoint-URL's) of via **Settings → Agent → Markdown Memory**.
+Defaults live in `default_config.yaml`. User overrides are stored in `usr/plugins/markdown_memory/config.json` (automatically gitignored; may contain internal endpoint URLs) or via **Settings → Agent → Markdown Memory**.
 
-| Sleutel | Standaard | Betekenis |
+| Key | Default | Meaning |
 |---|---|---|
-| `inject_policy` | `true` | Vault-werkinstructies injecteren |
-| `inject_recall` | `true` | Semantische recall injecteren |
-| `vault_path` | `/a0/usr/AI-Memory` | Map met Markdown-notities |
-| `index_path` | `/a0/usr/AI-Memory-Index/memory-granite.db` | SQLite-vectorindex |
-| `embedding_url` | `""` (leeg) | Ollama-compatibel `/api/embed`-endpoint; leeg = recall uit |
-| `embedding_model` | `granite-embedding:278m` | Modelnaam provider |
-| `embedding_dimensions` | `768` | Verwachte vectordimensie |
-| `embedding_timeout_seconds` | `15` | HTTP-timeout provider |
-| `recall_limit` | `3` | Aantal notities per recall (1–10) |
-| `min_message_chars` | `5` | Minimale berichtlengte voor recall |
-| `search_timeout_seconds` | `20` | Maximum duur van één recall |
-| `max_note_chars` | `6000` | Afkortlengte per notitie |
+| `inject_policy` | `true` | Inject vault operating instructions |
+| `inject_recall` | `true` | Inject semantic recall |
+| `vault_path` | `/a0/usr/AI-Memory` | Directory with Markdown notes |
+| `index_path` | `/a0/usr/AI-Memory-Index/memory-granite.db` | SQLite vector index |
+| `embedding_url` | `""` (empty) | Ollama-compatible `/api/embed` endpoint; empty = recall off |
+| `embedding_model` | `granite-embedding:278m` | Provider model name |
+| `embedding_dimensions` | `768` | Expected vector dimension |
+| `embedding_timeout_seconds` | `15` | Provider HTTP timeout |
+| `recall_limit` | `3` | Number of notes per recall (1–10) |
+| `min_message_chars` | `5` | Minimum message length for recall |
+| `search_timeout_seconds` | `20` | Maximum duration of one recall |
+| `max_note_chars` | `6000` | Truncation length per note |
 
-**Voorbeeld** `config.json` (Kubernetes, service `ollama` in namespace `default`):
+**Example** `config.json`:
 
 ```json
 {
@@ -97,59 +97,60 @@ Standaardwaarden staan in `default_config.yaml`. Gebruikersoverschrijvingen word
 }
 ```
 
-Milieuvariabelen van het framework (indien ondersteund door de installatie) volgen het patroon `MARKDOWN_MEMORY__<SLEUTEL>`.
+Framework environment variables (where supported by the installation) follow the `MARKDOWN_MEMORY__<KEY>` pattern.
 
-## Index bijwerken
+## Refreshing the index
 
-Na nieuwe of gewijzigde notities (in de Agent Zero-container):
+After adding or changing notes (inside the Agent Zero container):
 
 ```bash
 cd /a0 && /opt/venv-a0/bin/python -m usr.plugins.markdown_memory.scripts.index_granite
 ```
 
-De indexer is incrementeel: ongewijzigde notities worden overgeslagen (inhouds-hash), gewijzigde her-geëmbed (met `passage: `-prefix) en verwijderde notities uit de index geschoond.
+The indexer is incremental: unchanged notes are skipped (content hash), changed notes are re-embedded (with the `passage: ` prefix) and deleted notes are removed from the index.
 
-## Gebruik
+## Usage
 
-- Stel een vraag in een nieuwe chat; de recall zoekt automatisch relevante vault-notities (logmelding: *Markdown Memory: relevant notes found*).
-- Injectie gebeurt alleen bij iteratie 0 en alleen bij berichten ≥ `min_message_chars` tekens.
-- Geïnitieerde notities worden als **naslagwerk** gemarkeerd; de agent voert nooit commando's uit die in notities staan.
-- Fouten (provider onbereikbaar, dimensie-afwijking) degraderen graceful: de chat gaat door zonder recall, met een waarschuwing in de log.
+- Ask a question in a new chat; recall automatically finds relevant vault notes (log entry: *Markdown Memory: relevant notes found*).
+- Injection happens only at iteration 0 and only for messages of at least `min_message_chars` characters.
+- Injected notes are marked as **reference material**; the agent never executes commands found in notes.
+- Failures (provider unreachable, dimension mismatch) degrade gracefully: the chat continues without recall, with a warning in the log.
 
-## API-eindpunten
+## API endpoints
 
-| Route | Methode | Functie |
+| Route | Method | Function |
 |---|---|---|
-| `/api/plugins/markdown_memory/status` | GET/POST | Runtime-status: provider geconfigureerd, vault/index aanwezig, aantal geïndexeerde documenten |
-| `/api/plugins/markdown_memory/search` | POST | Testzoekopdracht: `{"query": "...", "limit": 3}` → paden + scores (zonder notitieteksten) |
+| `/api/plugins/markdown_memory/status` | GET/POST | Runtime status: provider configured, vault/index present, indexed document count |
+| `/api/plugins/markdown_memory/search` | POST | Test search: `{"query": "...", "limit": 3}` → paths + scores (without note bodies) |
 
-Beide eindpunten vereisen de normale Agent Zero-auth; de embedding-URL wordt nooit geretourneerd.
+Both endpoints require normal Agent Zero authentication; the embedding URL is never returned.
 
-## Tests uitvoeren
+## Running the tests
 
-In de Agent Zero-container:
+Inside the Agent Zero container:
 
 ```bash
-cd /a0 && /opt/venv-a0/bin/python -m unittest \n  usr.plugins.markdown_memory.tests.test_markdown_memory -v
+cd /a0 && /opt/venv-a0/bin/python -m unittest \
+  usr.plugins.markdown_memory.tests.test_markdown_memory -v
 ```
 
-De suite dekt: defaults/merge/klemming van configuratie, recall-gereedheidscontrole, ranking en formattering van zoekresultaten, dimensie-validatie, masking van de endpoint-URL voor UI-callers, mask-behoud bij opslaan en de lifecycle-hooks.
+The suite covers: configuration defaults/merge/clamping, recall readiness checks, search result ranking and formatting, dimension validation, endpoint URL masking for UI callers, mask preservation on save, and the lifecycle hooks.
 
-## Verwijderen en opschonen
+## Removal and cleanup
 
-Verwijder de plugin via **Settings → Plugins → Uninstall**. De `uninstall()`-hook:
+Remove the plugin via **Settings → Plugins → Uninstall**. The `uninstall()` hook:
 
-- stopt geen processen (de plugin start er geen),
-- laat de Markdown-vault en de SQLite-index ongemoeid (gebruikersdata),
-- verwijdert geen gedeelde afhankelijkheden.
+- stops no processes (the plugin starts none),
+- leaves the Markdown vault and the SQLite index untouched (user data),
+- removes no shared dependencies.
 
-Optioneel handmatig opruimen: `usr/plugins/markdown_memory/config.json` verdwijnt samen met de plugindirectory.
+Optional manual cleanup: `usr/plugins/markdown_memory/config.json` disappears together with the plugin directory.
 
-## Eindcontrole
+## Final checks
 
-- [x] `plugin.yaml` aanwezig, `name` = mapnaam = `markdown_memory`, geen `always_enabled`
-- [x] Unit-tests: 14/14 groen in `/opt/venv-a0`
-- [x] Status-API retourneert `ready: true` met de actuele index
-- [x] Zoek-API retourneert gerangschikte paden met scores
-- [x] Injectie actief: policy + recall zichtbaar in chat-EXTRAS
-- [x] Geen interne URLs of secrets in de repository (alleen in gitignored `config.json`)
+- [x] `plugin.yaml` present, `name` = folder name = `markdown_memory`, no `always_enabled`
+- [x] Unit tests: 14/14 green on `/opt/venv-a0`
+- [x] Status API returns `ready: true` with the current index
+- [x] Search API returns ranked paths with scores
+- [x] Injection active: policy + recall visible in chat extras
+- [x] No internal URLs or secrets in the repository (only in gitignored `config.json`)
