@@ -1,6 +1,6 @@
 # Markdown Memory — Agent Zero Plugin
 
-**Version:** 1.1.0 · **Author:** jphermans · **License:** MIT
+**Version:** 1.1.1 · **Author:** jphermans · **License:** MIT
 
 ![Markdown Memory](webui/thumbnail.png)
 
@@ -90,6 +90,8 @@ Defaults live in `default_config.yaml`. User overrides are stored in `usr/plugin
 | `min_message_chars` | `5` | Minimum message length for recall |
 | `search_timeout_seconds` | `20` | Maximum duration of one recall |
 | `max_note_chars` | `6000` | Truncation length per note |
+
+**Tip:** the settings panel has a *Restore defaults* button that restores the local Ollama embedding defaults (granite-embedding:278m, 768 dims, cloud off, standard timeouts).
 
 **Example** `config.json`:
 

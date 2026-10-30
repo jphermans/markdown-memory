@@ -23,6 +23,18 @@
       const mn = Number(config.max_note_chars); config.max_note_chars = Number.isFinite(mn) ? Math.max(500, Math.min(100000, mn)) : 6000;
       if (typeof config.vault_path !== 'string' || !config.vault_path) config.vault_path = '/a0/usr/AI-Memory';
       if (typeof config.index_path !== 'string' || !config.index_path) config.index_path = '/a0/usr/AI-Memory-Index/memory-granite.db';
+    },
+    restoreEmbeddingDefaults() {
+      config.embedding_url = 'http://ollama.ollama.svc.cluster.local:11434/api/embed';
+      config.embedding_model = 'granite-embedding:278m';
+      config.embedding_dimensions = 768;
+      config.embedding_timeout_seconds = 15;
+      config.embedding_cloud = false;
+      config.embedding_api_key = '';
+      config.recall_limit = 3;
+      config.min_message_chars = 5;
+      config.search_timeout_seconds = 20;
+      config.max_note_chars = 6000;
     }
   }" x-init="initConfig()">
 
@@ -185,6 +197,21 @@
       <div class="field-control" style="display: flex; gap: 0.5rem;">
         <input type="number" min="1" max="8192" x-model.number="config.embedding_dimensions" />
         <input type="number" min="1" max="300" x-model.number="config.embedding_timeout_seconds" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">
+        <div class="field-title">Restore default embedding settings</div>
+        <div class="field-description">
+          One click restores the local Ollama defaults: the local endpoint of this installation,
+          granite-embedding:278m, 768 dimensions, cloud off, no API key, and the standard
+          recall/timeout values. Does not change vault/index paths or the injection toggles.
+          Press Save afterwards to persist.
+        </div>
+      </div>
+      <div class="field-control">
+        <button type="button" @click="restoreEmbeddingDefaults()">Restore defaults</button>
       </div>
     </div>
   </div>
