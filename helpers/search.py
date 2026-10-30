@@ -21,6 +21,28 @@ class SearchError(RuntimeError):
     """Raised when the embedding provider or index cannot be used."""
 
 
+def _request_headers(config: dict[str, Any]) -> dict[str, str]:
+    """Content-Type plus Bearer auth only when cloud mode and a key are set."""
+    headers = {"Content-Type": "application/json"}
+    api_key = str(config.get("embedding_api_key") or "").strip()
+    if config.get("embedding_cloud") and api_key:
+        headers["Authorization"] = "Bearer " + api_key
+    return headers
+
+
+def _extract_vector(data: dict[str, Any]) -> list[float]:
+    """Accept both Ollama (embeddings[0]) and OpenAI (data[0].embedding) shapes."""
+    embeddings = data.get("embeddings")
+    if isinstance(embeddings, list) and embeddings:
+        return embeddings[0]
+    items = data.get("data")
+    if isinstance(items, list) and items and isinstance(items[0], dict):
+        vector = items[0].get("embedding")
+        if isinstance(vector, list):
+            return vector
+    raise SearchError("Unexpected embedding response format from provider")
+
+
 def _embed_query(query: str, config: dict[str, Any]) -> list[float]:
     payload = json.dumps(
         {
@@ -32,13 +54,13 @@ def _embed_query(query: str, config: dict[str, Any]) -> list[float]:
     request = urllib.request.Request(
         config["embedding_url"],
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers=_request_headers(config),
         method="POST",
     )
 
     timeout = config["embedding_timeout_seconds"]
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        vector = json.load(response)["embeddings"][0]
+        vector = _extract_vector(json.load(response))
 
     expected = config["embedding_dimensions"]
     if len(vector) != expected:

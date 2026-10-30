@@ -1,7 +1,8 @@
 # Markdown Memory default settings.
 # User overrides belong in the plugin settings UI or usr/plugins/markdown_memory/config.json
-# (never committed to a public repository). Environment overrides use
-# MARKDOWN_MEMORY__<KEY> style variables where the framework supports them.
+# (never committed to a public repository). Environment overrides use the
+# A0_SET_MARKDOWN_MEMORY__<KEY> pattern (framework helpers/settings.py),
+# for example A0_SET_MARKDOWN_MEMORY__EMBEDDING_API_KEY.
 
 # Injection toggles
 inject_policy: true
@@ -13,6 +14,11 @@ index_path: /a0/usr/AI-Memory-Index/memory-granite.db
 
 # Embedding provider (Ollama-compatible /api/embed endpoint)
 embedding_url: ""
+# Cloud embeddings: enable only when embedding_url is a cloud endpoint that
+# requires an API key (Ollama Cloud or OpenRouter /api/v1/embeddings).
+# When false (default), no Authorization header is sent (local Ollama).
+embedding_cloud: false
+embedding_api_key: ""
 embedding_model: granite-embedding:278m
 embedding_dimensions: 768
 embedding_timeout_seconds: 15

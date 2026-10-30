@@ -34,17 +34,30 @@ def embed(text: str, config: dict) -> str:
         {"model": config["embedding_model"], "input": text}
     ).encode("utf-8")
 
+    headers = {"Content-Type": "application/json"}
+    api_key = str(config.get("embedding_api_key") or "").strip()
+    if config.get("embedding_cloud") and api_key:
+        headers["Authorization"] = "Bearer " + api_key
+
     request = urllib.request.Request(
         config["embedding_url"],
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
 
     with urllib.request.urlopen(request, timeout=180) as response:
         data = json.load(response)
 
-    vector = data["embeddings"][0]
+    embeddings = data.get("embeddings")
+    if isinstance(embeddings, list) and embeddings:
+        vector = embeddings[0]
+    else:
+        items = data.get("data")
+        if isinstance(items, list) and items and isinstance(items[0], dict):
+            vector = items[0].get("embedding")
+        else:
+            raise ValueError("Unexpected embedding response format from provider")
     if len(vector) != config["embedding_dimensions"]:
         raise ValueError(
             f"Unexpected embedding dimension: {len(vector)} != {config['embedding_dimensions']}"

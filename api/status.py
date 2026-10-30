@@ -27,6 +27,8 @@ def _status_payload() -> dict:
         provider = {
             "configured": bool(config["embedding_url"]),
             "model": config["embedding_model"],
+            "cloud": bool(config.get("embedding_cloud")),
+            "api_key_set": bool(str(config.get("embedding_api_key") or "").strip()),
         }
         vault_exists = Path(config["vault_path"]).is_dir()
         index_exists = Path(config["index_path"]).is_file()

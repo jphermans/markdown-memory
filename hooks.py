@@ -14,7 +14,7 @@ from typing import Any
 
 from usr.plugins.markdown_memory.helpers.config import DEFAULTS, normalize
 
-SECRET_KEYS = ("embedding_url",)
+SECRET_KEYS = ("embedding_url", "embedding_api_key")
 MASK = "***"
 
 

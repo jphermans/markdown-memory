@@ -19,6 +19,8 @@ DEFAULTS: dict[str, Any] = {
     "vault_path": "/a0/usr/AI-Memory",
     "index_path": "/a0/usr/AI-Memory-Index/memory-granite.db",
     "embedding_url": "",
+    "embedding_cloud": False,
+    "embedding_api_key": "",
     "embedding_model": "granite-embedding:278m",
     "embedding_dimensions": 768,
     "embedding_timeout_seconds": 15,
@@ -67,6 +69,8 @@ def normalize(settings: dict | None) -> dict[str, Any]:
     merged["vault_path"] = _as_str(merged["vault_path"], str(DEFAULTS["vault_path"]))
     merged["index_path"] = _as_str(merged["index_path"], str(DEFAULTS["index_path"]))
     merged["embedding_url"] = _as_str(merged["embedding_url"], "")
+    merged["embedding_cloud"] = _as_bool(merged["embedding_cloud"], False)
+    merged["embedding_api_key"] = _as_str(merged["embedding_api_key"], "")
     merged["embedding_model"] = _as_str(
         merged["embedding_model"], str(DEFAULTS["embedding_model"])
     )

@@ -1,10 +1,10 @@
 # Markdown Memory — Agent Zero Plugin
 
-**Version:** 1.0.1 · **Author:** jphermans · **License:** MIT
+**Version:** 1.1.0 · **Author:** jphermans · **License:** MIT
 
 ![Markdown Memory](webui/thumbnail.png)
 
-Shared, Obsidian-compatible Markdown memory with semantic recall via local Granite embeddings for every Agent Zero chat.
+Shared, Obsidian-compatible Markdown memory with semantic recall via local Ollama or cloud embeddings (Ollama Cloud, OpenRouter) for every Agent Zero chat.
 
 ---
 
@@ -81,6 +81,8 @@ Defaults live in `default_config.yaml`. User overrides are stored in `usr/plugin
 | `vault_path` | `/a0/usr/AI-Memory` | Directory with Markdown notes |
 | `index_path` | `/a0/usr/AI-Memory-Index/memory-granite.db` | SQLite vector index |
 | `embedding_url` | `""` (empty) | Ollama-compatible `/api/embed` endpoint; empty = recall off |
+| `embedding_cloud` | `false` | Send `Authorization: Bearer` with the API key (enable for cloud endpoints) |
+| `embedding_api_key` | `""` (empty) | Cloud API key (Ollama Cloud / OpenRouter); masked in the UI |
 | `embedding_model` | `granite-embedding:278m` | Provider model name |
 | `embedding_dimensions` | `768` | Expected vector dimension |
 | `embedding_timeout_seconds` | `15` | Provider HTTP timeout |
@@ -97,7 +99,32 @@ Defaults live in `default_config.yaml`. User overrides are stored in `usr/plugin
 }
 ```
 
-Framework environment variables (where supported by the installation) follow the `MARKDOWN_MEMORY__<KEY>` pattern.
+Framework environment variables follow the `A0_SET_MARKDOWN_MEMORY__<KEY>` pattern (for example `A0_SET_MARKDOWN_MEMORY__EMBEDDING_API_KEY`).
+
+### Cloud embeddings (optional)
+
+Cloud use is **off by default**: with the checkbox off, no `Authorization` header is sent and the plugin talks to the local Ollama endpoint exactly as before.
+
+To use a cloud provider:
+
+1. Set **Embedding endpoint** to the cloud URL.
+2. Enable **Cloud embeddings**.
+3. Fill **Embedding API key**.
+4. Set **Embedding model** and **Embedding dimensions** to match the chosen model (see below).
+5. Re-run the indexer — switching models always requires a full re-index.
+
+| Provider | Endpoint URL | Example model | Default dims | Verified |
+|---|---|---|---|---|
+| Ollama Cloud | `https://ollama.com/api/embed` | `nomic-embed-text` | 768 | API contract (live test needs a cloud key) |
+| OpenRouter | `https://openrouter.ai/api/v1/embeddings` | `nvidia/nemotron-3-embed-1b:free` | 2048 | yes (live) |
+| OpenRouter | `https://openrouter.ai/api/v1/embeddings` | `liquid/lfm-2.5-embedding-350m:free` | 1024 | yes (live) |
+| OpenRouter | `https://openrouter.ai/api/v1/embeddings` | `openai/text-embedding-3-small` | 1536 | yes (live) |
+
+Notes:
+
+- The plugin sends `{model, input}` and accepts both Ollama (`embeddings[0]`) and OpenAI (`data[0].embedding`) response shapes automatically.
+- API keys: OpenRouter from openrouter.ai/keys; Ollama Cloud from ollama.com (account → API keys).
+- The key is stored in `config.json` (gitignored) and always shown masked in the UI.
 
 ## Refreshing the index
 

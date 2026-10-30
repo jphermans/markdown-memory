@@ -59,6 +59,16 @@ class ConfigTests(unittest.TestCase):
         self.assertFalse(config["inject_policy"])
         self.assertTrue(config["inject_recall"])
 
+    def test_cloud_defaults_off(self):
+        config = normalize({})
+        self.assertFalse(config["embedding_cloud"])
+        self.assertEqual(config["embedding_api_key"], "")
+
+    def test_cloud_fields_coerce(self):
+        config = normalize({"embedding_cloud": "true", "embedding_api_key": " k "})
+        self.assertTrue(config["embedding_cloud"])
+        self.assertEqual(config["embedding_api_key"], "k")
+
     def test_unknown_keys_ignored(self):
         config = normalize({"evil_key": "x"})
         self.assertNotIn("evil_key", config)
@@ -152,6 +162,38 @@ class SearchTests(unittest.TestCase):
         self.assertNotIn("root.md", result)
         self.assertIn("sub/note.md", result)
 
+    def test_no_auth_header_without_cloud(self):
+        captured = {}
+
+        def _capture(req, timeout=None):
+            captured["req"] = req
+            return _FakeResponse({"embeddings": [[0.9, 0.1]]})
+
+        with mock.patch.object(urllib.request, "urlopen", _capture):
+            search_mod.search_notes("query", self.config)
+        self.assertNotIn("Authorization", captured["req"].headers)
+
+    def test_auth_header_sent_when_cloud_enabled(self):
+        cfg = normalize({**self.config, "embedding_cloud": True, "embedding_api_key": "secret-key"})
+        captured = {}
+
+        def _capture(req, timeout=None):
+            captured["req"] = req
+            return _FakeResponse({"embeddings": [[0.9, 0.1]]})
+
+        with mock.patch.object(urllib.request, "urlopen", _capture):
+            search_mod.search_notes("query", cfg)
+        self.assertEqual(captured["req"].headers.get("Authorization"), "Bearer secret-key")
+
+    def test_openai_style_response_accepted(self):
+        with mock.patch.object(
+            urllib.request,
+            "urlopen",
+            return_value=_FakeResponse({"data": [{"embedding": [0.9, 0.1]}]}),
+        ):
+            result = search_mod.search_notes("query", self.config)
+        self.assertIn("root.md", result)
+
 
 class HooksTests(unittest.TestCase):
     def test_get_config_masks_url_for_ui(self):
@@ -166,6 +208,14 @@ class HooksTests(unittest.TestCase):
             {"embedding_url": "http://internal/api/embed"}, hook_context={"caller": "agent"}
         )
         self.assertEqual(config["embedding_url"], "http://internal/api/embed")
+
+    def test_get_config_masks_api_key_for_ui(self):
+        from usr.plugins.markdown_memory import hooks
+
+        config = hooks.get_plugin_config(
+            {"embedding_api_key": "sk-secret"}, hook_context={"caller": "ui"}
+        )
+        self.assertEqual(config["embedding_api_key"], hooks.MASK)
 
     def test_save_config_keeps_stored_url_on_mask(self):
         from usr.plugins.markdown_memory import hooks
