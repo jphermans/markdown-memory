@@ -103,6 +103,49 @@ Defaults live in `default_config.yaml`. User overrides are stored in `usr/plugin
 
 Settings apply per installation: `plugin.yaml` declares `per_project_config: false` and `per_agent_config: false`, because the plugin intentionally maintains one shared vault.
 
+### Choosing the vault location (host folder)
+
+The `vault_path` setting is always a **container-side** path and defaults to
+`/a0/usr/AI-Memory`. To store the Markdown files in a folder **on the host
+machine**, mount the host folder onto that path — do not change `vault_path`:
+
+| Runtime | Mount |
+|---|---|
+| Docker | `-v /home/you/AI-Memory:/a0/usr/AI-Memory` |
+| Podman | same `-v` flag as Docker |
+| Kubernetes | `hostPath` volume mounted at `/a0/usr/AI-Memory` |
+
+Example Kubernetes volume for a single-node cluster:
+
+```yaml
+volumes:
+  - name: vault
+    hostPath:
+      path: /home/you/AI-Memory
+      type: Directory
+```
+
+…mounted on the Agent Zero container with:
+
+```yaml
+volumeMounts:
+  - name: vault
+    mountPath: /a0/usr/AI-Memory
+```
+
+Ownership tip: when Agent Zero runs as root (common in containers), files it
+creates on the host become root-owned. Add an initContainer, or a small host
+cron job run periodically as root:
+
+```bash
+find /home/you/AI-Memory -user root -exec chown you:yourgroup {} +
+```
+
+Only change `vault_path` in Settings (or
+`A0_SET_MARKDOWN_MEMORY__VAULT_PATH`) when you want a different path
+**inside** the container; the host folder choice is always made on the
+mount side.
+
 ### Restore defaults button (since 1.1.1)
 
 The settings panel has a **Restore defaults** button that restores the embedding-related defaults in one click: the local Ollama endpoint of this installation, `granite-embedding:278m`, 768 dimensions, cloud off, no API key, and the standard recall/timeout values. It does **not** change the vault/index paths or the injection toggles. Press **Save** afterwards to persist.

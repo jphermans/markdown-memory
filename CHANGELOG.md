@@ -5,7 +5,16 @@ All notable changes to the **Markdown Memory** plugin are documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - Unreleased
+## [1.2.1] - 2026-11-01
+
+### Added
+
+- README section "Choosing the vault location (host folder)": how to
+  place the Markdown vault in a host folder via Docker/Podman bind mounts or
+  a Kubernetes hostPath, keeping the container-side `vault_path` unchanged,
+  including an ownership-normalization tip.
+
+## [1.2.0] - 2026-11-01
 
 ### Added
 
