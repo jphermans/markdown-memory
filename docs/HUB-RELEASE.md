@@ -1,4 +1,4 @@
-# Markdown Memory — Plugin Hub Release Checklist (v1.2.3)
+# Markdown Memory — Plugin Hub Release Checklist (v1.2.4)
 
 Parity checklist for publishing/updating **markdown_memory** on the Agent Zero Plugin Hub. Every item must be checked before the hub release is announced. Status legend: ✅ verified.
 
@@ -8,13 +8,13 @@ Parity checklist for publishing/updating **markdown_memory** on the Agent Zero P
 
 ```
 markdown_memory/
-├── plugin.yaml                  # name = folder name, version 1.2.3, settings_sections: [agent]
+├── plugin.yaml                  # name = folder name, version 1.2.4, settings_sections: [agent]
 ├── README.md                    # hub-quality, English
 ├── CHANGELOG.md                 # Keep a Changelog style
 ├── LICENSE                      # MIT
 ├── .gitignore                   # excludes config.json, __pycache__, etc.
 ├── default_config.yaml          # documented defaults (source of env var names)
-├── hooks.py                     # install/pre_update/uninstall + config masking
+├── hooks.py                     # install/pre_update/uninstall + API-key masking
 ├── helpers/
 │   ├── config.py                # DEFAULTS, normalize(), load_config(), recall_ready()
 │   └── search.py                # embed client (Ollama/OpenAI), cosine ranking
@@ -51,15 +51,16 @@ Not in the repository (ever): `config.json` (runtime-only, gitignored, may conta
 | 1.2.1 | README section "Choosing the vault location (host folder)": Docker/Podman bind mounts, Kubernetes `hostPath` volume, ownership-normalization tip. |
 | 1.2.2 | README subsection "How it works: one folder, two paths": mount semantics (one physical folder, not a copy), FAQ, `sha256sum` verification recipe, migration/shadowing note. |
 | 1.2.3 | Documentation polish: spelling consistency, README version header synced with `plugin.yaml`, checklist refreshed. |
+| 1.2.4 | Settings UI shows the embedding endpoint URL in plain text again (user decision): only `embedding_api_key` remains masked (`***`); README, tests and hub docs updated. |
 
 ## 3. Pre-release parity checklist
 
 | # | Item | Status |
 |---|---|---|
-| 1 | `plugin.yaml`: `name` matches folder (`markdown_memory`), `version: 1.2.0`, `settings_sections: [agent]`, no `always_enabled` | ✅ |
+| 1 | `plugin.yaml`: `name` matches folder (`markdown_memory`), `version: 1.2.4`, `settings_sections: [agent]`, no `always_enabled` | ✅ |
 | 2 | README: hub-quality, English, architecture/configuration/remote-usage/security/troubleshooting complete | ✅ |
 | 3 | Env-prefix documented in verified form `A0_SET_MARKDOWN_MEMORY__<KEY>` (framework `helpers/plugins.py` `_apply_defaults_from_env` + `helpers/settings.py` `get_default_value`) | ✅ |
-| 4 | `CHANGELOG.md` covers 1.0.x → 1.2.3 in Keep a Changelog style | ✅ |
+| 4 | `CHANGELOG.md` covers 1.0.x → 1.2.4 in Keep a Changelog style | ✅ |
 | 5 | Keys in `default_config.yaml` == keys in `helpers/config.py` `DEFAULTS` | ✅ |
 | 6 | No secrets/URLs in the repo; `config.json` gitignored; example URLs sanitized (`internal.example`) | ✅ |
 | 7 | Unit tests green on `/opt/venv-a0` (25 tests, including the 1.2.0 tool tests) | ✅ |
@@ -96,13 +97,13 @@ kubectl -n agent-zero exec <pod> -- sh -c \
   'cd /a0 && /opt/venv-a0/bin/python -m unittest usr.plugins.markdown_memory.tests.test_markdown_memory -v'
 ```
 
-Coverage: config defaults/merge/clamping, recall readiness, ranking and formatting, dimension validation, dual response parsing, Authorization-header behaviour, URL/key masking and mask preservation, lifecycle hooks.
+Coverage: config defaults/merge/clamping, recall readiness, ranking and formatting, dimension validation, dual response parsing, Authorization-header behaviour, API-key masking and mask preservation, lifecycle hooks.
 
 Functional smoke test: after (re)indexing, `POST /api/plugins/markdown_memory/search` with a known note topic returns that note's path with the highest score; the status endpoint reports `ready: true` and a document count > 0.
 
 ## 6. Security considerations
 
-- `embedding_url` and `embedding_api_key` are masked (`***`) for UI callers; submitting the mask preserves the stored value (`hooks.py` `SECRET_KEYS`).
+- `embedding_api_key` is masked (`***`) for UI callers; submitting the mask preserves the stored value (`hooks.py` `SECRET_KEYS`). The embedding endpoint URL is shown in plain text (since v1.2.4, user decision): internal endpoints are not secrets.
 - The repository must stay free of endpoints/keys: `config.json` is gitignored; prefer env vars (`A0_SET_MARKDOWN_MEMORY__...`) for deployments.
 - `Authorization: Bearer` is sent only when `embedding_cloud` is enabled and a key is set.
 - The search API returns paths/scores only — no note bodies; no endpoint returns the URL or key.

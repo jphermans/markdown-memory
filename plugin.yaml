@@ -1,7 +1,7 @@
 name: markdown_memory
 title: Markdown Memory
 description: Shared Obsidian-compatible Markdown memory with semantic recall via local Ollama or cloud embeddings (Ollama Cloud, OpenRouter).
-version: 1.2.3
+version: 1.2.4
 settings_sections:
   - agent
 per_project_config: false

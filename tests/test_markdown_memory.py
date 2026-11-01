@@ -197,13 +197,13 @@ class SearchTests(unittest.TestCase):
 
 
 class HooksTests(unittest.TestCase):
-    def test_get_config_masks_url_for_ui(self):
+    def test_get_config_shows_url_for_ui(self):
         from usr.plugins.markdown_memory import hooks
 
         config = hooks.get_plugin_config(
             {"embedding_url": "http://internal/api/embed"}, hook_context={"caller": "ui"}
         )
-        self.assertEqual(config["embedding_url"], hooks.MASK)
+        self.assertEqual(config["embedding_url"], "http://internal/api/embed")
 
         config = hooks.get_plugin_config(
             {"embedding_url": "http://internal/api/embed"}, hook_context={"caller": "agent"}
@@ -218,22 +218,22 @@ class HooksTests(unittest.TestCase):
         )
         self.assertEqual(config["embedding_api_key"], hooks.MASK)
 
-    def test_save_config_keeps_stored_url_on_mask(self):
+    def test_save_config_keeps_stored_api_key_on_mask(self):
         from usr.plugins.markdown_memory import hooks
 
         with tempfile.TemporaryDirectory() as tmp:
             stored_path = Path(tmp) / "config.json"
-            stored_path.write_text(json.dumps({"embedding_url": "http://real/api"}))
+            stored_path.write_text(json.dumps({"embedding_api_key": "sk-real"}))
 
             fake = types_mod = type(sys)("helpers.plugins")
             fake.find_plugin_asset = lambda *a, **k: {"path": str(stored_path)}
             with mock.patch.dict(sys.modules, {"helpers.plugins": fake}):
                 saved = hooks.save_plugin_config(
-                    settings={"embedding_url": hooks.MASK, "recall_limit": 4},
+                    settings={"embedding_api_key": hooks.MASK, "recall_limit": 4},
                     project_name="",
                     agent_profile="",
                 )
-            self.assertEqual(saved["embedding_url"], "http://real/api")
+            self.assertEqual(saved["embedding_api_key"], "sk-real")
             self.assertEqual(saved["recall_limit"], 4)
 
     def test_save_config_allows_explicit_new_url(self):

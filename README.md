@@ -1,6 +1,6 @@
 # Markdown Memory — Agent Zero Plugin
 
-**Version:** 1.2.3 · **Author:** jphermans · **License:** MIT
+**Version:** 1.2.4 · **Author:** jphermans · **License:** MIT
 
 ![Markdown Memory](webui/thumbnail.png)
 
@@ -51,7 +51,7 @@ All plugin logic runs server-side, inside the Agent Zero server process (in the 
 | API handlers | `api/status.py`, `api/search.py` | `/api/plugins/markdown_memory/status` and `/search` for the WebUI and automation |
 | Configuration | `helpers/config.py` | Merges `default_config.yaml` + user `config.json`, validates and clamps every value |
 | Search engine | `helpers/search.py` | `/api/embed` client (Ollama and OpenAI response shapes), cosine ranking, vault-only path checks |
-| Lifecycle | `hooks.py` | `install` / `pre_update` / `uninstall` plus settings hooks (URL/key masking for the UI) |
+| Lifecycle | `hooks.py` | `install` / `pre_update` / `uninstall` plus settings hooks (API-key masking for the UI) |
 | Indexer | `scripts/index_granite.py` | Incremental (re)index of the vault into SQLite (container-side) |
 | Settings UI | `webui/config.html` | Plugin settings in the Agent tab, including the *Restore defaults* button |
 
@@ -305,11 +305,11 @@ cd /a0 && /opt/venv-a0/bin/python -m unittest \
 
 On a Kubernetes host, run the same command via `kubectl -n agent-zero exec <pod> -- sh -c 'cd /a0 && /opt/venv-a0/bin/python -m unittest ...'`.
 
-The suite covers: configuration defaults/merge/clamping, recall readiness checks, search ranking and formatting, dimension validation, Ollama/OpenAI response parsing, Authorization-header behaviour (only with cloud enabled), endpoint URL and API-key masking for UI callers, mask preservation on save, and the lifecycle hooks.
+The suite covers: configuration defaults/merge/clamping, recall readiness checks, search ranking and formatting, dimension validation, Ollama/OpenAI response parsing, Authorization-header behaviour (only with cloud enabled), API-key masking for UI callers, API-key mask preservation on save, and the lifecycle hooks.
 
 ## Security
 
-- **Masking:** `embedding_url` and `embedding_api_key` are masked (`***`) for settings-UI callers; submitting the mask back preserves the stored value.
+- **Masking:** `embedding_api_key` is masked (`***`) for settings-UI callers; submitting the mask back preserves the stored value. The embedding endpoint URL is shown in plain text (since v1.2.4, user decision): an internal endpoint is not a secret.
 - **No secrets in code or repo:** the repository contains no URLs or keys; runtime values live in the gitignored `config.json` or in environment variables (`A0_SET_MARKDOWN_MEMORY__...`).
 - **Conditional auth:** the `Authorization: Bearer` header is sent only when *Cloud embeddings* is enabled **and** a key is set — local Ollama behaviour is unchanged.
 - **Vault-only write scope:** memory maintenance may only write inside the configured vault (plus the dedicated index through approved tooling); search results are path-checked against the vault and restricted to `.md` files.
@@ -324,7 +324,7 @@ The suite covers: configuration defaults/merge/clamping, recall readiness checks
 | Log: *search failed* / `search_failed` | Provider unreachable or timeout: verify `embedding_url` from inside the container (`curl`), raise `embedding_timeout_seconds`. Recall degrades gracefully — the chat continues without notes. |
 | `Unexpected embedding dimension` | Model and `embedding_dimensions` do not match (e.g. after switching provider). Set the correct dimension and run a **full** re-index. |
 | Search finds nothing after editing notes | The index is stale: run `memory_reindex` (tool) or the container-side indexer command. |
-| UI shows `***` in the endpoint/key fields | That is the mask. Re-enter the real value to change it, or use *Restore defaults*; submitting the mask keeps the stored value. |
+| UI shows `***` in the API-key field | That is the mask. Re-enter the real value to change it, or use *Restore defaults*; submitting the mask keeps the stored value. |
 | Environment variable has no effect | Use the exact uppercase form `A0_SET_MARKDOWN_MEMORY__<KEY>`. Note that a saved `config.json` takes precedence — remove the key there if the env value should win. |
 | Vault lost after container recreation | No persistent mount on `/a0/usr` (or the vault directory). Add a bind mount / PVC / hostPath, then restore notes and re-index. |
 | Remote A0 CLI: `No such file or directory: /a0/...` | Expected: your terminal runs on the client host. Use `memory_search` / `memory_reindex` and server-side file tools instead of shell commands. |

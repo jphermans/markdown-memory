@@ -5,6 +5,16 @@ All notable changes to the **Markdown Memory** plugin are documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-11-01
+
+### Changed
+
+- The settings UI shows the embedding endpoint URL in plain text again
+  (user request): an internal endpoint is not a secret. Only
+  `embedding_api_key` remains masked (`***`); `hooks.py` `SECRET_KEYS`
+  covers the API key only. Tests, README and hub documentation updated
+  accordingly.
+
 ## [1.2.3] - 2026-11-01
 
 ### Changed
@@ -113,7 +123,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   uninstall.
 - Unit test suite (14 tests) for configuration, search, masking and hooks.
 
-[1.2.0]: https://github.com/jphermans/markdown-memory
+[1.2.0]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.0
+[1.2.4]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.4
+[1.2.3]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.3
 [1.2.2]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.2
 [1.2.1]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.1
 [1.1.1]: https://github.com/jphermans/markdown-memory/releases/tag/v1.1.1

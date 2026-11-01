@@ -14,7 +14,7 @@ from typing import Any
 
 from usr.plugins.markdown_memory.helpers.config import DEFAULTS, normalize
 
-SECRET_KEYS = ("embedding_url", "embedding_api_key")
+SECRET_KEYS = ("embedding_api_key",)
 MASK = "***"
 
 
@@ -41,7 +41,7 @@ def _load_stored_settings(project_name: str = "", agent_profile: str = "") -> di
 
 
 def get_plugin_config(default=None, hook_context=None, **kwargs) -> dict[str, Any]:
-    """Return a fully-populated config; mask internal URLs for UI callers."""
+    """Return a fully-populated config; mask the API key for UI callers."""
     config = normalize(default if isinstance(default, dict) else None)
     caller = (hook_context or {}).get("caller", "api")
     if caller == "ui":
@@ -54,7 +54,7 @@ def get_plugin_config(default=None, hook_context=None, **kwargs) -> dict[str, An
 def save_plugin_config(
     settings=None, default=None, project_name=None, agent_profile=None, **kwargs
 ) -> dict[str, Any]:
-    """Persist settings; keep stored internal URLs when the UI submits masks."""
+    """Persist settings; keep the stored API key when the UI submits a mask."""
     submitted = copy.deepcopy(settings if isinstance(settings, dict) else default)
     stored = _load_stored_settings(
         project_name=project_name or "", agent_profile=agent_profile or ""
