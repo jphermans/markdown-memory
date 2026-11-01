@@ -66,16 +66,18 @@ def embed(text: str, config: dict) -> str:
     return json.dumps(vector)
 
 
-def main() -> int:
-    try:
+def run_index(config: dict | None = None) -> dict:
+    """Refresh the vector index and return statistics.
+
+    Returns a dict with ``indexed``, ``skipped`` and ``removed`` counts.
+    Raises on configuration or provider failures so callers (CLI, agent
+    tools) can report a clear error.
+    """
+    if config is None:
         config = load_config()
-    except Exception as exc:
-        print(f"Config unavailable ({type(exc).__name__}); cannot index.", file=sys.stderr)
-        return 1
 
     if not config["embedding_url"]:
-        print("embedding_url is not configured; cannot index.", file=sys.stderr)
-        return 1
+        raise RuntimeError("embedding_url is not configured; cannot index.")
 
     vault = Path(config["vault_path"])
     db_path = Path(config["index_path"])
@@ -156,7 +158,23 @@ def main() -> int:
 
         conn.commit()
 
-    print(f"Finished: indexed={indexed}, skipped={skipped}, removed={removed}")
+    return {"indexed": indexed, "skipped": skipped, "removed": removed}
+
+
+def main() -> int:
+    try:
+        config = load_config()
+    except Exception as exc:
+        print(f"Config unavailable ({type(exc).__name__}); cannot index.", file=sys.stderr)
+        return 1
+
+    try:
+        stats = run_index(config)
+    except Exception as exc:
+        print(f"Indexing failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Finished: indexed={stats['indexed']}, skipped={stats['skipped']}, removed={stats['removed']}")
     return 0
 
 

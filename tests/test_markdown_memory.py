@@ -12,6 +12,7 @@ import json
 import sqlite3
 import sys
 import tempfile
+import asyncio
 import unittest
 import urllib.request
 from pathlib import Path
@@ -262,3 +263,49 @@ class HooksTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class AgentToolsTest(unittest.TestCase):
+    """Server-side agent tools (v1.2.0)."""
+
+    def test_tool_classes_importable(self):
+        from helpers.tool import Tool
+        from usr.plugins.markdown_memory.tools.memory_reindex import MemoryReindex
+        from usr.plugins.markdown_memory.tools.memory_search import MemorySearch
+
+        for cls in (MemorySearch, MemoryReindex):
+            self.assertTrue(issubclass(cls, Tool))
+
+    def test_run_index_importable_and_rejects_empty_url(self):
+        from usr.plugins.markdown_memory.scripts.index_granite import run_index
+
+        with self.assertRaises(RuntimeError):
+            run_index({"embedding_url": ""})
+
+    def test_memory_search_success(self):
+        from usr.plugins.markdown_memory.tools import memory_search
+
+        with unittest.mock.patch.object(
+            memory_search, "search_notes", return_value="Source: Decisions/x.md\nSimilarity: 0.900\ncontent"
+        ):
+            response = asyncio.run(memory_search.MemorySearch.execute(None, query="vault", limit=3))
+        self.assertIn("Decisions/x.md", response.message)
+        self.assertFalse(response.break_loop)
+
+    def test_memory_search_error_path(self):
+        from usr.plugins.markdown_memory.helpers.search import SearchError
+        from usr.plugins.markdown_memory.tools import memory_search
+
+        with unittest.mock.patch.object(
+            memory_search, "search_notes", side_effect=SearchError("provider down")
+        ):
+            response = asyncio.run(memory_search.MemorySearch.execute(None, query="vault"))
+        self.assertIn("Search failed", response.message)
+        self.assertFalse(response.break_loop)
+
+    def test_memory_search_requires_query(self):
+        from usr.plugins.markdown_memory.tools.memory_search import MemorySearch
+
+        response = asyncio.run(MemorySearch.execute(None, query="  "))
+        self.assertIn("Error", response.message)
