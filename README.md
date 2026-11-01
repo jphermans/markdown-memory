@@ -1,6 +1,6 @@
 # Markdown Memory — Agent Zero Plugin
 
-**Version:** 1.2.0 · **Author:** jphermans · **License:** MIT
+**Version:** 1.2.3 · **Author:** jphermans · **License:** MIT
 
 ![Markdown Memory](webui/thumbnail.png)
 

@@ -5,6 +5,19 @@ All notable changes to the **Markdown Memory** plugin are documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-11-01
+
+### Changed
+
+- Spelling consistency: `behaviour` throughout the documentation (one `behavior`
+  outlier in the bundled policy).
+- README version header now tracks `plugin.yaml` (was stale at 1.2.0).
+- `docs/HUB-RELEASE.md` refreshed: tool and tool-test checklist items marked
+  verified (25 unit tests), feature table extended with 1.2.1–1.2.3, roadmap
+  updated after the live hostPath migration, stale internal workdir reference
+  removed.
+- Added missing link references for 1.2.1 and 1.2.2.
+
 ## [1.2.2] - 2026-11-01
 
 ### Added
@@ -101,6 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit test suite (14 tests) for configuration, search, masking and hooks.
 
 [1.2.0]: https://github.com/jphermans/markdown-memory
+[1.2.2]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.2
+[1.2.1]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.1
 [1.1.1]: https://github.com/jphermans/markdown-memory/releases/tag/v1.1.1
 [1.1.0]: https://github.com/jphermans/markdown-memory/releases/tag/v1.1.0
 [1.0.1]: https://github.com/jphermans/markdown-memory/releases/tag/v1.0.1
