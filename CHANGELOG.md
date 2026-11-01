@@ -5,6 +5,16 @@ All notable changes to the **Markdown Memory** plugin are documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-11-01
+
+### Added
+
+- README subsection "How it works: one folder, two paths" under the vault
+  location section: after mounting, the container path and the host folder
+  are the same physical folder (not a copy, not a sync), the plugin keeps
+  using the container path, notes are immediately visible on both sides,
+  a `sha256sum` verification recipe, and a migration/shadowing note.
+
 ## [1.2.1] - 2026-11-01
 
 ### Added

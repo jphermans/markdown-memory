@@ -146,6 +146,40 @@ Only change `vault_path` in Settings (or
 **inside** the container; the host folder choice is always made on the
 mount side.
 
+#### How it works: one folder, two paths
+
+After the mount is active, the container path and the host path are
+**the same physical folder** — not a copy and not a sync:
+
+```
+Agent Zero (container)  ── reads/writes ──►  /a0/usr/AI-Memory     ┐
+                                                                   ├──  ONE folder on the host disk
+You / Obsidian / backup ── reads/writes ──►  /home/you/AI-Memory   ┘
+```
+
+- **The plugin keeps working unchanged:** `vault_path` still points at
+  `/a0/usr/AI-Memory`; recall, `memory_search`, `memory_reindex` and
+  server-side file tools all keep using that path.
+- **Everything is stored on the host disk:** notes the agent writes appear
+  immediately in your host folder, and edits you make on the host
+  (for example in Obsidian) are immediately visible to the agent.
+- **"Are my notes still in `/a0/usr/AI-Memory`?" Yes.** Both paths are
+  names for the same folder — there is exactly one copy of the data.
+- **Verify it yourself** — the hashes must match:
+
+  ```bash
+  # inside the Agent Zero container
+  sha256sum /a0/usr/AI-Memory/MEMORY.md
+  # on the host
+  sha256sum /home/you/AI-Memory/MEMORY.md
+  ```
+
+Migration note: anything already stored at the container path (inside the
+image or a PVC) is **shadowed** by the mount while it is active — the host
+folder becomes the single source of truth. If you migrate an existing
+vault, copy its files into the host folder **before** mounting the path
+(or with the container stopped), so nothing appears to "disappear".
+
 ### Restore defaults button (since 1.1.1)
 
 The settings panel has a **Restore defaults** button that restores the embedding-related defaults in one click: the local Ollama endpoint of this installation, `granite-embedding:278m`, 768 dimensions, cloud off, no API key, and the standard recall/timeout values. It does **not** change the vault/index paths or the injection toggles. Press **Save** afterwards to persist.
