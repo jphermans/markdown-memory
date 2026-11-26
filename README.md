@@ -1,6 +1,6 @@
 # Markdown Memory — Agent Zero Plugin
 
-**Version:** 1.2.4 · **Author:** jphermans · **License:** MIT
+**Version:** 1.2.5 · **Author:** jphermans · **License:** MIT
 
 ![Markdown Memory](webui/thumbnail.png)
 
@@ -25,9 +25,10 @@ The Markdown vault (`/a0/usr/AI-Memory` by default) is the authoritative source 
 11. [API endpoints](#api-endpoints)
 12. [Refreshing the index](#refreshing-the-index)
 13. [Running the tests](#running-the-tests)
-14. [Security](#security)
-15. [Troubleshooting](#troubleshooting)
-16. [Removal and cleanup](#removal-and-cleanup)
+14. [Moving to a new host or cluster](#moving-to-a-new-host-or-cluster)
+15. [Security](#security)
+16. [Troubleshooting](#troubleshooting)
+17. [Removal and cleanup](#removal-and-cleanup)
 
 ---
 
@@ -50,7 +51,7 @@ All plugin logic runs server-side, inside the Agent Zero server process (in the 
 | Agent tools | `tools/` (since 1.2.0) | `memory_search`, `memory_reindex` — server-side execution, identical in local and remote sessions |
 | API handlers | `api/status.py`, `api/search.py` | `/api/plugins/markdown_memory/status` and `/search` for the WebUI and automation |
 | Configuration | `helpers/config.py` | Merges `default_config.yaml` + user `config.json`, validates and clamps every value |
-| Search engine | `helpers/search.py` | `/api/embed` client (Ollama and OpenAI response shapes), cosine ranking, vault-only path checks |
+| Search engine | `helpers/search.py` | Shared `/api/embed` client (Ollama and OpenAI response shapes) with actionable provider errors, cosine ranking, vault-only path checks |
 | Lifecycle | `hooks.py` | `install` / `pre_update` / `uninstall` plus settings hooks (API-key masking for the UI) |
 | Indexer | `scripts/index_granite.py` | Incremental (re)index of the vault into SQLite (container-side) |
 | Settings UI | `webui/config.html` | Plugin settings in the Agent tab, including the *Restore defaults* button |
@@ -282,7 +283,7 @@ The plugin is runtime-neutral. It uses only container-internal absolute paths an
 | `/api/plugins/markdown_memory/status` | GET/POST | Runtime status: provider configured, cloud flag, key set, vault/index present, indexed document count |
 | `/api/plugins/markdown_memory/search` | POST | Test search: `{"query": "...", "limit": 3}` → paths + scores (without note bodies) |
 
-Both endpoints require normal Agent Zero authentication. The status payload contains booleans/counts only — the embedding URL itself is never returned.
+Both endpoints require normal Agent Zero authentication. The status payload contains booleans/counts only — the embedding URL itself is never returned. `ready` reflects configuration and files only: the status endpoint does not contact the embedding server, so use the search endpoint or `memory_search` as the provider smoke test.
 
 ## Refreshing the index
 
@@ -293,6 +294,22 @@ cd /a0 && /opt/venv-a0/bin/python -m usr.plugins.markdown_memory.scripts.index_g
 ```
 
 The indexer is incremental: unchanged notes are skipped (content hash), changed notes are re-embedded (with the `passage: ` prefix) and deleted notes are removed from the index.
+
+## Moving to a new host or cluster
+
+The plugin has two kinds of state, and they move differently:
+
+- **Vault and index** live on the Agent Zero volume (`vault_path`, `index_path`). They move with the `/a0/usr` mount, and the index is a rebuildable cache.
+- **The embedding model is not part of the plugin or the vault.** It lives in the model store of the embedding server (for example the Ollama volume). A new or freshly installed embedding server starts without it, and search and indexing then fail with `Embedding model '...' is not available on the embedding server (HTTP 404: ...)`.
+
+Checklist:
+
+1. List the dependencies outside the migrated volume: the embedding server, the exact model name (`embedding_model`) and an endpoint that is reachable **from the new container**.
+2. Before the cut-over, pull the model on the new embedding server (`ollama pull granite-embedding:278m`) or migrate its model store.
+3. After the cut-over, run a provider smoke test: `memory_reindex` and a `memory_search` for a known note, or `POST /api/plugins/markdown_memory/search`.
+4. Compare the vault content on both sides (for example a `sha256sum` list of all notes) and keep the old volume until the new setup passes the smoke test.
+
+`ready` in the status API reflects configuration and files only; it does not contact the embedding server.
 
 ## Running the tests
 
@@ -305,7 +322,7 @@ cd /a0 && /opt/venv-a0/bin/python -m unittest \
 
 On a Kubernetes host, run the same command via `kubectl -n agent-zero exec <pod> -- sh -c 'cd /a0 && /opt/venv-a0/bin/python -m unittest ...'`.
 
-The suite covers: configuration defaults/merge/clamping, recall readiness checks, search ranking and formatting, dimension validation, Ollama/OpenAI response parsing, Authorization-header behaviour (only with cloud enabled), API-key masking for UI callers, API-key mask preservation on save, and the lifecycle hooks.
+The suite covers: configuration defaults/merge/clamping, recall readiness checks, search ranking and formatting, dimension validation, Ollama/OpenAI response parsing, Authorization-header behaviour (only with cloud enabled), API-key masking for UI callers, API-key mask preservation on save, the lifecycle hooks, actionable provider errors (missing model, generic 404, rejected request, unreachable provider, timeouts, malformed and non-JSON responses, invalid embedding URL), secret redaction in error messages, the indexer's use of the shared embedding client and the `memory_reindex` error report.
 
 ## Security
 
@@ -321,7 +338,11 @@ The suite covers: configuration defaults/merge/clamping, recall readiness checks
 | Symptom | Check / fix |
 |---|---|
 | Recall never triggers | `GET /api/plugins/markdown_memory/status`: `ready` requires `embedding_url` set, the vault directory to exist, and the index file to exist. Also check `inject_recall` and `min_message_chars` (recall only runs on the first user message). |
-| Log: *search failed* / `search_failed` | Provider unreachable or timeout: verify `embedding_url` from inside the container (`curl`), raise `embedding_timeout_seconds`. Recall degrades gracefully — the chat continues without notes. |
+| `Embedding model '...' is not available on the embedding server` | The configured model is missing on the embedding server (HTTP 404), typically after moving to a new host or a fresh Ollama volume. Pull it there (`ollama pull <model>`), or set *Embedding model* to an installed model and run a **full** re-index. See [Moving to a new host or cluster](#moving-to-a-new-host-or-cluster). |
+| `Embedding provider unreachable` / `timed out` / `sent a malformed` | The endpoint cannot be reached from the container, answers too slowly or breaks off the response: verify `embedding_url` from inside the container (`curl`), check that the embedding server runs and is healthy, raise `embedding_timeout_seconds`. |
+| `Embedding provider rejected the request (HTTP 401/403)` | Check the API key and the *Cloud embeddings* setting. |
+| `Invalid embedding_url` | The URL cannot be used by the HTTP client: it lacks a scheme (`http://`), lacks a host, has a port that is not a number, or contains spaces or control characters. Set a complete URL such as `http://<embedding-host>:11434/api/embed`. |
+| Log: *search failed* / `search_failed` | Another provider or index failure; the chat log, the tool result and the `detail` field of the search API name the cause. Recall degrades gracefully — the chat continues without notes. |
 | `Unexpected embedding dimension` | Model and `embedding_dimensions` do not match (e.g. after switching provider). Set the correct dimension and run a **full** re-index. |
 | Search finds nothing after editing notes | The index is stale: run `memory_reindex` (tool) or the container-side indexer command. |
 | UI shows `***` in the API-key field | That is the mask. Re-enter the real value to change it, or use *Restore defaults*; submitting the mask keeps the stored value. |

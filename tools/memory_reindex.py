@@ -1,5 +1,6 @@
 from helpers.tool import Tool, Response
 
+from usr.plugins.markdown_memory.helpers.search import SearchError
 from usr.plugins.markdown_memory.scripts.index_granite import run_index
 
 
@@ -7,6 +8,8 @@ class MemoryReindex(Tool):
     async def execute(self, **kwargs) -> Response:
         try:
             stats = run_index()
+        except SearchError as exc:
+            return Response(message=f"Indexing failed: {exc}", break_loop=False)
         except Exception as exc:
             return Response(
                 message=f"Indexing failed: {type(exc).__name__}: {exc}",

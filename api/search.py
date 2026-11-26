@@ -33,6 +33,6 @@ class Search(ApiHandler):
             results = search_results(query, config, limit=int(data.get("limit", 3)))
             return {"query": query, "results": results}
         except SearchError as exc:
-            return {"error": "search_failed", "detail": str(exc)[:200], "results": []}
+            return {"error": "search_failed", "detail": str(exc)[:400], "results": []}
         except Exception as exc:
             return {"error": type(exc).__name__, "results": []}

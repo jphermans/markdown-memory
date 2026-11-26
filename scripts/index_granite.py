@@ -17,52 +17,29 @@ import hashlib
 import json
 import sqlite3
 import sys
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 # Allow running both as a module and as a plain script.
 try:
     from usr.plugins.markdown_memory.helpers.config import load_config
+    from usr.plugins.markdown_memory.helpers.search import SearchError, embed_text
 except ImportError:  # plain-script execution
     sys.path.insert(0, "/a0")
     from usr.plugins.markdown_memory.helpers.config import load_config
+    from usr.plugins.markdown_memory.helpers.search import SearchError, embed_text
+
+
+INDEX_EMBED_TIMEOUT_SECONDS = 180
 
 
 def embed(text: str, config: dict) -> str:
-    payload = json.dumps(
-        {"model": config["embedding_model"], "input": text}
-    ).encode("utf-8")
+    """Embed one text through the shared client and return the vector as JSON.
 
-    headers = {"Content-Type": "application/json"}
-    api_key = str(config.get("embedding_api_key") or "").strip()
-    if config.get("embedding_cloud") and api_key:
-        headers["Authorization"] = "Bearer " + api_key
-
-    request = urllib.request.Request(
-        config["embedding_url"],
-        data=payload,
-        headers=headers,
-        method="POST",
-    )
-
-    with urllib.request.urlopen(request, timeout=180) as response:
-        data = json.load(response)
-
-    embeddings = data.get("embeddings")
-    if isinstance(embeddings, list) and embeddings:
-        vector = embeddings[0]
-    else:
-        items = data.get("data")
-        if isinstance(items, list) and items and isinstance(items[0], dict):
-            vector = items[0].get("embedding")
-        else:
-            raise ValueError("Unexpected embedding response format from provider")
-    if len(vector) != config["embedding_dimensions"]:
-        raise ValueError(
-            f"Unexpected embedding dimension: {len(vector)} != {config['embedding_dimensions']}"
-        )
-
+    Provider failures raise ``SearchError`` with an actionable message, for
+    example when the configured model is missing on the embedding server.
+    """
+    vector = embed_text(text, config, timeout=INDEX_EMBED_TIMEOUT_SECONDS)
     return json.dumps(vector)
 
 
@@ -170,6 +147,9 @@ def main() -> int:
 
     try:
         stats = run_index(config)
+    except SearchError as exc:
+        print(f"Indexing failed: {exc}", file=sys.stderr)
+        return 1
     except Exception as exc:
         print(f"Indexing failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
