@@ -5,6 +5,46 @@ All notable changes to the **Markdown Memory** plugin are documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] - 2026-11-25
+
+### Fixed
+
+- Provider failures are no longer reported as a bare `HTTPError: HTTP Error 404:
+  Not Found`, which suggests a wrong endpoint URL. Every embedding request
+  (recall, `memory_search`, `memory_reindex`, the search API and the
+  container-side indexer) now raises `SearchError` with an actionable message:
+  a missing model is named as such (`Embedding model '...' is not available on
+  the embedding server (HTTP 404: ...)`, with the pull and re-index remedy),
+  a rejected request points to the API key, and an unreachable, slow or
+  malformed-answer provider is reported as such. An `embedding_url` that
+  cannot be used (missing scheme or host, nonnumeric port, unusable path) is
+  reported as an
+  invalid setting. The provider's own error text is included;
+  the API key and the endpoint URL are kept out of every message.
+
+### Changed
+
+- The indexer uses the shared embedding client (`embed_text` in
+  `helpers/search.py`) instead of a duplicated request. Request format,
+  `passage:` prefix and the 180 s indexer timeout are unchanged.
+- `memory_reindex` reports a provider failure without the exception class
+  prefix (`Indexing failed: Embedding model ... is not available ...`).
+
+- The search API returns up to 400 characters of the failure detail (was 200)
+  so the remedy is not cut off; recall logs the failure message instead of
+  only the exception class name.
+
+### Added
+
+- README section "Moving to a new host or cluster": the embedding model is a
+  dependency outside the vault and must be present on the new embedding
+  server; includes a cut-over checklist and a provider smoke test.
+- README troubleshooting rows for the new provider messages, and a note that
+  `ready` in the status API does not contact the embedding server.
+- Unit tests for missing-model, generic 404, rejected-request, unreachable,
+  timeout and non-JSON responses, secret redaction, and the indexer's use of
+  the shared client, and unusable embedding URLs (25 to 44 tests).
+
 ## [1.2.4] - 2026-11-01
 
 ### Changed
@@ -125,6 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.2.0]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.0
 [1.2.4]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.4
+[1.2.5]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.5
 [1.2.3]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.3
 [1.2.2]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.2
 [1.2.1]: https://github.com/jphermans/markdown-memory/releases/tag/v1.2.1

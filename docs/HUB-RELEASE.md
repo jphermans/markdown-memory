@@ -1,6 +1,6 @@
-# Markdown Memory — Plugin Hub Release Checklist (v1.2.4)
+# Markdown Memory — Plugin Hub Release Checklist (v1.2.5)
 
-Parity checklist for publishing/updating **markdown_memory** on the Agent Zero Plugin Hub. Every item must be checked before the hub release is announced. Status legend: ✅ verified.
+Parity checklist for publishing/updating **markdown_memory** on the Agent Zero Plugin Hub. Every item must be checked before the hub release is announced. Status legend: ✅ verified · ⏳ pending (re-run in the live instance after the update).
 
 ---
 
@@ -8,7 +8,7 @@ Parity checklist for publishing/updating **markdown_memory** on the Agent Zero P
 
 ```
 markdown_memory/
-├── plugin.yaml                  # name = folder name, version 1.2.4, settings_sections: [agent]
+├── plugin.yaml                  # name = folder name, version 1.2.5, settings_sections: [agent]
 ├── README.md                    # hub-quality, English
 ├── CHANGELOG.md                 # Keep a Changelog style
 ├── LICENSE                      # MIT
@@ -17,7 +17,7 @@ markdown_memory/
 ├── hooks.py                     # install/pre_update/uninstall + API-key masking
 ├── helpers/
 │   ├── config.py                # DEFAULTS, normalize(), load_config(), recall_ready()
-│   └── search.py                # embed client (Ollama/OpenAI), cosine ranking
+│   └── search.py                # embed client (Ollama/OpenAI), actionable provider errors, cosine ranking
 ├── extensions/python/message_loop_prompts_after/
 │   ├── _40_markdown_memory_policy.py
 │   └── _60_markdown_recall.py
@@ -52,22 +52,23 @@ Not in the repository (ever): `config.json` (runtime-only, gitignored, may conta
 | 1.2.2 | README subsection "How it works: one folder, two paths": mount semantics (one physical folder, not a copy), FAQ, `sha256sum` verification recipe, migration/shadowing note. |
 | 1.2.3 | Documentation polish: spelling consistency, README version header synced with `plugin.yaml`, checklist refreshed. |
 | 1.2.4 | Settings UI shows the embedding endpoint URL in plain text again (user decision): only `embedding_api_key` remains masked (`***`); README, tests and hub docs updated. |
+| 1.2.5 | Actionable provider errors: every embedding request (recall, agent tools, search API, indexer) reports a missing model, a rejected request, an unreachable, slow or malformed-answer provider or an unusable `embedding_url` as `SearchError` with the provider's own error text; the indexer uses the shared embedding client; README cut-over checklist for a new host or cluster. |
 
 ## 3. Pre-release parity checklist
 
 | # | Item | Status |
 |---|---|---|
-| 1 | `plugin.yaml`: `name` matches folder (`markdown_memory`), `version: 1.2.4`, `settings_sections: [agent]`, no `always_enabled` | ✅ |
+| 1 | `plugin.yaml`: `name` matches folder (`markdown_memory`), `version: 1.2.5`, `settings_sections: [agent]`, no `always_enabled` | ✅ |
 | 2 | README: hub-quality, English, architecture/configuration/remote-usage/security/troubleshooting complete | ✅ |
 | 3 | Env-prefix documented in verified form `A0_SET_MARKDOWN_MEMORY__<KEY>` (framework `helpers/plugins.py` `_apply_defaults_from_env` + `helpers/settings.py` `get_default_value`) | ✅ |
-| 4 | `CHANGELOG.md` covers 1.0.x → 1.2.4 in Keep a Changelog style | ✅ |
+| 4 | `CHANGELOG.md` covers 1.0.x → 1.2.5 in Keep a Changelog style | ✅ |
 | 5 | Keys in `default_config.yaml` == keys in `helpers/config.py` `DEFAULTS` | ✅ |
 | 6 | No secrets/URLs in the repo; `config.json` gitignored; example URLs sanitized (`internal.example`) | ✅ |
-| 7 | Unit tests green on `/opt/venv-a0` (25 tests, including the 1.2.0 tool tests) | ✅ |
+| 7 | Unit tests green on `/opt/venv-a0` (44 tests, including the 1.2.0 tool tests and the 1.2.5 provider-error tests) | ✅ |
 | 8 | `tools/memory_search.py`, `tools/memory_reindex.py` present, registered, documented in README and policy | ✅ (1.2.0) |
 | 9 | Tools covered by unit tests (server-side execution, remote-session equivalence) | ✅ (1.2.0) |
-| 10 | Status/search API smoke-tested against the live index (`ready: true`, ranked results) | ✅ |
-| 11 | Policy injection and recall proven via chat extras (policy + recall blocks visible) | ✅ |
+| 10 | Status/search API smoke-tested against the live index (`ready: true`, ranked results) | ⏳ (verified up to 1.2.4; re-run after the live update) |
+| 11 | Policy injection and recall proven via chat extras (policy + recall blocks visible) | ⏳ (verified up to 1.2.4; re-run after the live update) |
 | 12 | Thumbnail present (`webui/thumbnail.png`) and rendering in the hub/plugin list | ✅ |
 
 ## 4. Installation & configuration (hub instructions)
@@ -97,7 +98,7 @@ kubectl -n agent-zero exec <pod> -- sh -c \
   'cd /a0 && /opt/venv-a0/bin/python -m unittest usr.plugins.markdown_memory.tests.test_markdown_memory -v'
 ```
 
-Coverage: config defaults/merge/clamping, recall readiness, ranking and formatting, dimension validation, dual response parsing, Authorization-header behaviour, API-key masking and mask preservation, lifecycle hooks.
+Coverage: config defaults/merge/clamping, recall readiness, ranking and formatting, dimension validation, dual response parsing, Authorization-header behaviour, API-key masking and mask preservation, lifecycle hooks, actionable provider errors (missing model, generic 404, rejected request, unreachable provider, timeout, malformed and non-JSON response, invalid embedding URL), secret redaction, indexer use of the shared embedding client, memory_reindex error report.
 
 Functional smoke test: after (re)indexing, `POST /api/plugins/markdown_memory/search` with a known note topic returns that note's path with the highest score; the status endpoint reports `ready: true` and a document count > 0.
 
@@ -117,6 +118,7 @@ Functional smoke test: after (re)indexing, `POST /api/plugins/markdown_memory/se
 - Recall triggers only on the first user message of a chat (iteration 0) and only above `min_message_chars`.
 - The index is not refreshed automatically on note changes; run `memory_reindex` / the indexer after writes.
 - Recall readiness requires `embedding_url` plus an existing vault directory and index file; without them the plugin still injects policy but no recall.
+- `ready` in the status API reflects configuration and files only; it does not contact the embedding server. Use the search endpoint or `memory_search` as the provider smoke test.
 - Settings are per installation (`per_project_config` / `per_agent_config` are `false`) — intentional: one shared vault.
 - Remote A0 CLI sessions cannot use the container-side shell fallback by design; the server-side tools are the supported route.
 - Semantic quality depends on the embedding model (Granite/Nomic are English-centric; other languages work but with lower precision).

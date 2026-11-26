@@ -14,7 +14,7 @@ from agent import LoopData
 from helpers.extension import Extension
 
 from usr.plugins.markdown_memory.helpers.config import load_config, recall_ready
-from usr.plugins.markdown_memory.helpers.search import search_notes
+from usr.plugins.markdown_memory.helpers.search import SearchError, search_notes
 
 RECALL_PREFIX = (
     "Relevant shared Markdown knowledge. "
@@ -58,7 +58,7 @@ class MarkdownRecall(Extension):
             self.agent.context.log.log(
                 type="warning",
                 heading="Markdown Memory: search failed",
-                content=type(exc).__name__,
+                content=str(exc)[:400] if isinstance(exc, SearchError) else type(exc).__name__,
             )
             return
 

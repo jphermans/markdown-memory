@@ -8,12 +8,15 @@ Run inside the Agent Zero framework runtime:
 
 from __future__ import annotations
 
+import http.client
+import io
 import json
 import sqlite3
 import sys
 import tempfile
 import asyncio
 import unittest
+import urllib.error
 import urllib.request
 from pathlib import Path
 from unittest import mock
@@ -309,3 +312,225 @@ class AgentToolsTest(unittest.TestCase):
 
         response = asyncio.run(MemorySearch.execute(None, query="  "))
         self.assertIn("Error", response.message)
+
+
+class ProviderErrorTests(unittest.TestCase):
+    """Provider failures become actionable SearchError messages (v1.2.5)."""
+
+    def setUp(self):
+        self.config = normalize(
+            {
+                "embedding_url": "http://fake/api/embed",
+                "embedding_model": "test-model",
+                "embedding_dimensions": 2,
+            }
+        )
+
+    @staticmethod
+    def _http_error(code, body):
+        return urllib.error.HTTPError(
+            "http://fake/api/embed", code, "error", {}, io.BytesIO(body.encode("utf-8"))
+        )
+
+    def _raises(self, exc):
+        return mock.patch.object(urllib.request, "urlopen", side_effect=exc)
+
+    def test_missing_model_404_names_model_and_remedy(self):
+        body = json.dumps({"error": 'model "test-model" not found'})
+        with self._raises(self._http_error(404, body)):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.search_notes("query", self.config)
+        message = str(caught.exception)
+        self.assertIn("'test-model'", message)
+        self.assertIn("HTTP 404", message)
+        self.assertIn("not available on the embedding server", message)
+        self.assertIn("ollama pull test-model", message)
+        self.assertIn("full re-index", message)
+
+    def test_other_404_points_to_url_and_model(self):
+        with self._raises(self._http_error(404, "404 page not found")):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", self.config)
+        message = str(caught.exception)
+        self.assertIn("HTTP 404", message)
+        self.assertIn("page not found", message)
+        self.assertIn("embedding_url", message)
+        self.assertNotIn("ollama pull", message)
+
+    def test_rejected_request_401_mentions_api_key(self):
+        body = json.dumps({"error": {"message": "No auth credentials found", "code": 401}})
+        with self._raises(self._http_error(401, body)):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", self.config)
+        message = str(caught.exception)
+        self.assertIn("HTTP 401", message)
+        self.assertIn("API key", message)
+        self.assertIn("No auth credentials found", message)
+
+    def test_api_key_and_url_never_leak_into_messages(self):
+        config = normalize(
+            {**self.config, "embedding_cloud": True, "embedding_api_key": "sk-secret-value"}
+        )
+        body = "key sk-secret-value rejected for http://fake/api/embed"
+        with self._raises(self._http_error(403, body)):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", config)
+        message = str(caught.exception)
+        self.assertNotIn("sk-secret-value", message)
+        self.assertNotIn("http://fake/api/embed", message)
+        self.assertIn("rejected", message)
+
+    def test_unreachable_provider(self):
+        refused = urllib.error.URLError(ConnectionRefusedError(111, "Connection refused"))
+        with self._raises(refused):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", self.config)
+        message = str(caught.exception)
+        self.assertIn("unreachable", message)
+        self.assertIn("Connection refused", message)
+
+    def test_timeout_while_waiting_for_the_answer(self):
+        with self._raises(TimeoutError("timed out")):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", self.config)
+        self.assertIn("timed out", str(caught.exception))
+
+    def test_timeout_while_connecting(self):
+        with self._raises(urllib.error.URLError(TimeoutError("timed out"))):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", self.config)
+        self.assertIn("timed out", str(caught.exception))
+
+    def test_non_json_success_response(self):
+        class Plain:
+            def read(self):
+                return b"not json"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        with mock.patch.object(urllib.request, "urlopen", return_value=Plain()):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", self.config)
+        self.assertIn("not valid JSON", str(caught.exception))
+
+    def test_missing_model_openai_wording(self):
+        body = json.dumps({"error": {"message": "The model test-model does not exist", "code": 404}})
+        with self._raises(self._http_error(404, body)):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", self.config)
+        self.assertIn("not available on the embedding server", str(caught.exception))
+
+    def test_malformed_http_response(self):
+        with self._raises(http.client.IncompleteRead(b"partial")):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", self.config)
+        message = str(caught.exception)
+        self.assertIn("malformed", message)
+        self.assertIn("IncompleteRead", message)
+
+    def test_short_values_do_not_mangle_messages(self):
+        config = normalize(
+            {**self.config, "embedding_cloud": True, "embedding_api_key": "key1"}
+        )
+        with self._raises(self._http_error(500, "monkey1 error")):
+            with self.assertRaises(search_mod.SearchError) as caught:
+                search_mod.embed_text("text", config)
+        message = str(caught.exception)
+        self.assertIn("monkey1 error", message)
+        self.assertNotIn("***", message)
+
+
+    def _invalid_url_message(self, url):
+        config = normalize({**self.config, "embedding_url": url})
+        with self.assertRaises(search_mod.SearchError) as caught:
+            search_mod.embed_text("text", config)
+        return str(caught.exception)
+
+    def test_url_without_scheme_is_reported_as_invalid(self):
+        message = self._invalid_url_message("internal.example/api/embed")
+        self.assertIn("Invalid embedding_url (the URL scheme is missing", message)
+        self.assertIn("complete URL with scheme", message)
+        self.assertNotIn("internal.example", message)
+
+    def test_url_without_http_prefix_is_reported_as_invalid(self):
+        message = self._invalid_url_message("internal.example:11434/api/embed")
+        self.assertIn("Invalid embedding_url (the URL scheme is missing", message)
+        self.assertNotIn("internal.example", message)
+
+    def test_url_with_unusable_path_is_reported_as_invalid(self):
+        message = self._invalid_url_message("http://internal.example:11434/api embed")
+        self.assertIn("Invalid embedding_url (the URL contains a character that is not allowed: ' ')", message)
+        self.assertNotIn("internal.example", message)
+        self.assertNotIn("api embed", message)
+
+    def test_url_without_host_is_reported_as_invalid(self):
+        message = self._invalid_url_message("http:///api/embed")
+        self.assertIn("Invalid embedding_url (the URL has no host). Use a complete URL", message)
+        self.assertNotIn("unreachable", message)
+
+    def test_url_with_nonnumeric_port_is_reported_as_invalid(self):
+        message = self._invalid_url_message("http://internal.example:port/api/embed")
+        self.assertIn("Invalid embedding_url (the port is not a number). Use a complete URL", message)
+        self.assertNotIn("port/api/embed", message)
+
+
+class IndexerProviderErrorTests(unittest.TestCase):
+    """The indexer reports provider failures through the shared client (v1.2.5)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.vault = Path(self.tmp.name) / "vault"
+        self.vault.mkdir()
+        (self.vault / "note.md").write_text("# Note body", encoding="utf-8")
+        self.config = normalize(
+            {
+                "vault_path": str(self.vault),
+                "index_path": str(Path(self.tmp.name) / "index.db"),
+                "embedding_url": "http://fake/api/embed",
+                "embedding_model": "test-model",
+                "embedding_dimensions": 2,
+            }
+        )
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_missing_model_aborts_with_actionable_error(self):
+        from usr.plugins.markdown_memory.scripts import index_granite
+
+        error = search_mod.SearchError(
+            "Embedding model 'test-model' is not available on the embedding server"
+        )
+        with mock.patch.object(index_granite, "embed_text", side_effect=error) as patched:
+            with self.assertRaises(search_mod.SearchError) as caught:
+                index_granite.run_index(self.config)
+        self.assertIs(caught.exception, error)
+        patched.assert_called_once()
+        self.assertEqual(patched.call_args.args[0], "passage: # Note body")
+
+    def test_indexer_uses_shared_client_with_long_timeout(self):
+        from usr.plugins.markdown_memory.scripts import index_granite
+
+        with mock.patch.object(index_granite, "embed_text", return_value=[0.5, 0.5]) as patched:
+            stats = index_granite.run_index(self.config)
+        self.assertEqual(stats, {"indexed": 1, "skipped": 0, "removed": 0})
+        self.assertEqual(patched.call_args.kwargs.get("timeout"), 180)
+        with sqlite3.connect(self.config["index_path"]) as conn:
+            row = conn.execute("SELECT model, embedding FROM documents").fetchone()
+        self.assertEqual(row, ("test-model", json.dumps([0.5, 0.5])))
+
+    def test_memory_reindex_tool_reports_provider_error(self):
+        from usr.plugins.markdown_memory.tools import memory_reindex
+
+        error = search_mod.SearchError(
+            "Embedding model test-model is not available on the embedding server (HTTP 404)",
+        )
+        with mock.patch.object(memory_reindex, "run_index", side_effect=error):
+            response = asyncio.run(memory_reindex.MemoryReindex.execute(None))
+        self.assertIn("Indexing failed: Embedding model test-model", response.message)
+        self.assertNotIn("SearchError", response.message)
+        self.assertFalse(response.break_loop)
